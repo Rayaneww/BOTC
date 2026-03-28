@@ -45,12 +45,12 @@ export default function PlayPage() {
   const [notes, setNotes] = useState('');
   const [showRoleReveal, setShowRoleReveal] = useState(false);
   const [roleConfirmed, setRoleConfirmed] = useState(false);
-  const [nightActionConfirmed, setNightActionConfirmed] = useState(false);
   const [nightInfo, setNightInfo] = useState<string | null>(null);
   const [meetingAlert, setMeetingAlert] = useState<{ number: number; time: string } | null>(null);
   const [bluffRoles, setBluffRoles] = useState<Role[]>([]);
   const [nightCallActive, setNightCallActive] = useState(false); // Being called by host at night
   const [espionRoles, setEspionRoles] = useState<{ playerId: string; pseudo: string; seatNumber: number | null; roleName: string; roleType: string }[]>([]);
+  const [myPlayerId, setMyPlayerId] = useState('');
 
   // Socket handlers
   const handleLobbyUpdate = useCallback((data: any) => {
@@ -120,7 +120,6 @@ export default function PlayPage() {
     const myPlayerId = localStorage.getItem('player_id');
     if (data.playerId === myPlayerId) {
       setNightCallActive(true);
-      setNightActionConfirmed(false);
       setNightInfo(null);
     }
   }, []);
@@ -129,11 +128,8 @@ export default function PlayPage() {
     const myPlayerId = localStorage.getItem('player_id');
     if (data.playerId === myPlayerId) {
       setNightCallActive(false);
+      setNightInfo(null);
     }
-  }, []);
-
-  const handleNightActionConfirmed = useCallback(() => {
-    setNightActionConfirmed(true);
   }, []);
 
   const handleNightInfoReceived = useCallback((data: { info: string }) => {
@@ -166,7 +162,6 @@ export default function PlayPage() {
     onMeetingAlert: handleMeetingAlert,
     onNightCall: handleNightCall,
     onNightCallEnd: handleNightCallEnd,
-    onNightActionConfirmed: handleNightActionConfirmed,
     onNightInfoReceived: handleNightInfoReceived,
   });
 
@@ -177,6 +172,8 @@ export default function PlayPage() {
       router.push(`/join/${gameCode}`);
       return;
     }
+
+    setMyPlayerId(localStorage.getItem('player_id') || '');
 
     // Load saved notes
     const savedNotes = localStorage.getItem(`notes_${gameCode}`);
@@ -561,15 +558,15 @@ export default function PlayPage() {
       )}
 
       {/* Night overlays */}
-      {phase === 'night' && !nightCallActive && <NightEyesClosed />}
+      {phase === 'night' && !nightCallActive && roleConfirmed && <NightEyesClosed />}
       {phase === 'night' && nightCallActive && myRole && (
         <NightActionUI
           roleName={myRole.name}
           players={players}
-          myPlayerId={localStorage.getItem('player_id') || ''}
+          myPlayerId={myPlayerId}
           nightInfo={nightInfo}
-          onSubmitTarget={(targetId) =>
-            submitNightAction({ actionType: 'choose_target', targetId })
+          onSubmitTarget={(targetId, actionType) =>
+            submitNightAction({ actionType, targetId })
           }
           onSubmitTwo={(targetIds) =>
             submitNightAction({ actionType: 'choose_two', targetIds })

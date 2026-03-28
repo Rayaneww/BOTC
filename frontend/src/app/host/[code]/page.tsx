@@ -21,8 +21,6 @@ import {
   StopCircle,
   AlertTriangle,
   UserMinus,
-  Phone,
-  PhoneOff,
 } from 'lucide-react';
 import { api, type Role, type Player } from '@/lib/api';
 import { useSocket } from '@/hooks/useSocket';
@@ -62,7 +60,6 @@ export default function HostPage() {
   const [selectedPlayer, setSelectedPlayer] = useState<HostPlayer | null>(null);
   const [showRoleSelector, setShowRoleSelector] = useState(false);
   const [showSeatSelector, setShowSeatSelector] = useState(false);
-  const [showRolesPanel, setShowRolesPanel] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<'players' | 'table' | 'roles'>('players');
@@ -134,12 +131,6 @@ export default function HostPage() {
     });
   }, []);
 
-  const handlePlayerEliminated = useCallback((data: any) => {
-    setPlayers((prev) =>
-      prev.map((p) => (p.id === data.playerId ? { ...p, isAlive: false } : p))
-    );
-  }, []);
-
   const {
     isConnected,
     assignRole,
@@ -166,7 +157,6 @@ export default function HostPage() {
     onMeetingAlert: handleMeetingAlert,
     onPhaseChanged: handlePhaseChanged,
     onPlayerStatusChanged: handlePlayerStatusChanged,
-    onPlayerEliminated: handlePlayerEliminated,
     onNightActionReceived: handleNightActionReceived,
     onError: handleError,
   });

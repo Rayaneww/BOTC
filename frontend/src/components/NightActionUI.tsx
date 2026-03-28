@@ -40,7 +40,7 @@ interface NightActionUIProps {
   players: NightPlayer[];
   myPlayerId: string;
   nightInfo: string | null;
-  onSubmitTarget: (targetId: string) => void;
+  onSubmitTarget: (targetId: string, actionType: 'choose_target' | 'choose_master') => void;
   onSubmitTwo: (targetIds: string[]) => void;
 }
 
@@ -63,7 +63,7 @@ export function NightActionUI({
   const handleSubmitTarget = () => {
     if (!selected) return;
     setSubmitted(true);
-    onSubmitTarget(selected);
+    onSubmitTarget(selected, actionType as 'choose_target' | 'choose_master');
   };
 
   const handleToggleTwo = (id: string) => {
