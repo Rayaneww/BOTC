@@ -14,20 +14,15 @@ import {
   type GameStartedEvent,
   type TimerTickEvent,
   type MeetingAlertEvent,
-  type MeetingStartedEvent,
-  type NominationsUpdatedEvent,
-  type VotingStartedEvent,
-  type VoteCastEvent,
-  type VoteConfirmedEvent,
-  type VotingResultsEvent,
-  type PlayerEliminatedEvent,
-  type MeetingEndedEvent,
   type PhaseChangedEvent,
   type PlayerStatusChangedEvent,
   type RoleRevealedEvent,
   type GameEndedEvent,
   type ReconnectedEvent,
   type ErrorEvent,
+  type NightActionConfirmedEvent,
+  type NightInfoReceivedEvent,
+  type NightActionReceivedEvent,
 } from '@/lib/socket';
 
 interface UseSocketOptions {
@@ -40,14 +35,6 @@ interface UseSocketOptions {
   onGameStarted?: (data: GameStartedEvent) => void;
   onTimerTick?: (data: TimerTickEvent) => void;
   onMeetingAlert?: (data: MeetingAlertEvent) => void;
-  onMeetingStarted?: (data: MeetingStartedEvent) => void;
-  onNominationsUpdated?: (data: NominationsUpdatedEvent) => void;
-  onVotingStarted?: (data: VotingStartedEvent) => void;
-  onVoteCast?: (data: VoteCastEvent) => void;
-  onVoteConfirmed?: (data: VoteConfirmedEvent) => void;
-  onVotingResults?: (data: VotingResultsEvent) => void;
-  onPlayerEliminated?: (data: PlayerEliminatedEvent) => void;
-  onMeetingEnded?: (data: MeetingEndedEvent) => void;
   onPhaseChanged?: (data: PhaseChangedEvent) => void;
   onPlayerStatusChanged?: (data: PlayerStatusChangedEvent) => void;
   onRoleRevealed?: (data: RoleRevealedEvent) => void;
@@ -55,6 +42,9 @@ interface UseSocketOptions {
   onReconnected?: (data: ReconnectedEvent) => void;
   onNightCall?: (data: { playerId: string }) => void;
   onNightCallEnd?: (data: { playerId: string }) => void;
+  onNightActionConfirmed?: (data: NightActionConfirmedEvent) => void;
+  onNightInfoReceived?: (data: NightInfoReceivedEvent) => void;
+  onNightActionReceived?: (data: NightActionReceivedEvent) => void;
   onError?: (data: ErrorEvent) => void;
 }
 
@@ -69,14 +59,6 @@ export function useSocket(options: UseSocketOptions) {
     onGameStarted,
     onTimerTick,
     onMeetingAlert,
-    onMeetingStarted,
-    onNominationsUpdated,
-    onVotingStarted,
-    onVoteCast,
-    onVoteConfirmed,
-    onVotingResults,
-    onPlayerEliminated,
-    onMeetingEnded,
     onPhaseChanged,
     onPlayerStatusChanged,
     onRoleRevealed,
@@ -84,6 +66,9 @@ export function useSocket(options: UseSocketOptions) {
     onReconnected,
     onNightCall,
     onNightCallEnd,
+    onNightActionConfirmed,
+    onNightInfoReceived,
+    onNightActionReceived,
     onError,
   } = options;
 
@@ -125,14 +110,6 @@ export function useSocket(options: UseSocketOptions) {
     if (onGameStarted) socket.on('game_started', onGameStarted);
     if (onTimerTick) socket.on('timer_tick', onTimerTick);
     if (onMeetingAlert) socket.on('meeting_alert', onMeetingAlert);
-    if (onMeetingStarted) socket.on('meeting_started', onMeetingStarted);
-    if (onNominationsUpdated) socket.on('nominations_updated', onNominationsUpdated);
-    if (onVotingStarted) socket.on('voting_started', onVotingStarted);
-    if (onVoteCast) socket.on('vote_cast', onVoteCast);
-    if (onVoteConfirmed) socket.on('vote_confirmed', onVoteConfirmed);
-    if (onVotingResults) socket.on('voting_results', onVotingResults);
-    if (onPlayerEliminated) socket.on('player_eliminated', onPlayerEliminated);
-    if (onMeetingEnded) socket.on('meeting_ended', onMeetingEnded);
     if (onPhaseChanged) socket.on('phase_changed', onPhaseChanged);
     if (onPlayerStatusChanged) socket.on('player_status_changed', onPlayerStatusChanged);
     if (onRoleRevealed) socket.on('role_revealed', onRoleRevealed);
@@ -140,6 +117,9 @@ export function useSocket(options: UseSocketOptions) {
     if (onReconnected) socket.on('reconnected', onReconnected);
     if (onNightCall) socket.on('night_call', onNightCall);
     if (onNightCallEnd) socket.on('night_call_end', onNightCallEnd);
+    if (onNightActionConfirmed) socket.on('night_action_confirmed', onNightActionConfirmed);
+    if (onNightInfoReceived) socket.on('night_info_received', onNightInfoReceived);
+    if (onNightActionReceived) socket.on('night_action_received', onNightActionReceived);
     if (onError) socket.on('error', onError);
 
     return () => {
@@ -153,14 +133,6 @@ export function useSocket(options: UseSocketOptions) {
       socket.off('game_started');
       socket.off('timer_tick');
       socket.off('meeting_alert');
-      socket.off('meeting_started');
-      socket.off('nominations_updated');
-      socket.off('voting_started');
-      socket.off('vote_cast');
-      socket.off('vote_confirmed');
-      socket.off('voting_results');
-      socket.off('player_eliminated');
-      socket.off('meeting_ended');
       socket.off('phase_changed');
       socket.off('player_status_changed');
       socket.off('role_revealed');
@@ -168,6 +140,9 @@ export function useSocket(options: UseSocketOptions) {
       socket.off('reconnected');
       socket.off('night_call');
       socket.off('night_call_end');
+      socket.off('night_action_confirmed');
+      socket.off('night_info_received');
+      socket.off('night_action_received');
       socket.off('error');
       disconnectSocket();
     };
@@ -253,41 +228,6 @@ export function useSocket(options: UseSocketOptions) {
     emitHostAction('trigger_meeting');
   }, [emitHostAction]);
   
-  // Meeting/Voting host actions
-  const startMeeting = useCallback(() => {
-    emitHostAction('start_meeting');
-  }, [emitHostAction]);
-  
-  const nominatePlayer = useCallback(
-    (playerId: string) => {
-      emitHostAction('nominate_player', { playerId });
-    },
-    [emitHostAction]
-  );
-  
-  const removeNomination = useCallback(
-    (playerId: string) => {
-      emitHostAction('remove_nomination', { playerId });
-    },
-    [emitHostAction]
-  );
-  
-  const startVoting = useCallback(() => {
-    emitHostAction('start_voting');
-  }, [emitHostAction]);
-  
-  const endVoting = useCallback(() => {
-    emitHostAction('end_voting');
-  }, [emitHostAction]);
-  
-  const confirmElimination = useCallback(() => {
-    emitHostAction('confirm_elimination');
-  }, [emitHostAction]);
-  
-  const endMeetingNoVote = useCallback(() => {
-    emitHostAction('end_meeting_no_vote');
-  }, [emitHostAction]);
-  
   // Night calling actions
   const callPlayer = useCallback((playerId: string) => {
     emitHostAction('night_call', { playerId });
@@ -297,18 +237,32 @@ export function useSocket(options: UseSocketOptions) {
     emitHostAction('night_call_end', { playerId });
   }, [emitHostAction]);
 
+  const sendNightInfo = useCallback(
+    (playerId: string, info: string) => {
+      emitHostAction('send_night_info', { playerId, info });
+    },
+    [emitHostAction]
+  );
+
+  const submitNightAction = useCallback(
+    (data: {
+      actionType: 'choose_target' | 'choose_two' | 'choose_master';
+      targetId?: string;
+      targetIds?: string[];
+    }) => {
+      const socket = getSocket();
+      if (socket?.connected) {
+        socket.emit('submit_night_action', data);
+      }
+    },
+    []
+  );
+
   // Player actions
   const setReady = useCallback((ready: boolean) => {
     const socket = getSocket();
     if (socket?.connected) {
       socket.emit('set_ready', { ready });
-    }
-  }, []);
-  
-  const castVote = useCallback((nomineeId: string) => {
-    const socket = getSocket();
-    if (socket?.connected) {
-      socket.emit('cast_vote', { nomineeId });
     }
   }, []);
 
@@ -327,19 +281,12 @@ export function useSocket(options: UseSocketOptions) {
     kickPlayer,
     updateSettings,
     triggerMeeting,
-    // Meeting/Voting host actions
-    startMeeting,
-    nominatePlayer,
-    removeNomination,
-    startVoting,
-    endVoting,
-    confirmElimination,
-    endMeetingNoVote,
-    // Night calling
+    // Night actions (host)
     callPlayer,
     endCallPlayer,
+    sendNightInfo,
     // Player actions
     setReady,
-    castVote,
+    submitNightAction,
   };
 }
