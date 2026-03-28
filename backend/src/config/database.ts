@@ -1,10 +1,9 @@
 import initSqlJs, { Database as SqlJsDatabase, SqlJsStatic } from 'sql.js';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { fukanoScript, fukanoRoles } from '../seeds/fukano.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = process.env.DB_PATH || path.join(__dirname, '../../data/botct.db');
+const dbPath = process.env.DB_PATH || path.join(process.cwd(), 'data', 'botct.db');
 
 // Créer le dossier data s'il n'existe pas
 const dataDir = path.dirname(dbPath);
@@ -82,6 +81,22 @@ class DatabaseWrapper {
 
   pragma(sql: string): void {
     this.db.run(`PRAGMA ${sql}`);
+  }
+
+  transaction<T>(fn: () => T): () => T {
+    const wrapper = this;
+    return () => {
+      wrapper.db.run('BEGIN TRANSACTION');
+      try {
+        const result = fn();
+        wrapper.db.run('COMMIT');
+        wrapper.save();
+        return result;
+      } catch (error) {
+        wrapper.db.run('ROLLBACK');
+        throw error;
+      }
+    };
   }
 
   private save(): void {
@@ -199,6 +214,21 @@ export async function initDatabase(): Promise<void> {
     db.exec(`ALTER TABLE players ADD COLUMN fake_role_id TEXT REFERENCES roles(id)`);
   } catch (e: any) {
     // La colonne existe déjà — ignorer
+  }
+
+  // Seed minimal par défaut (idempotent)
+  db.prepare(`
+    INSERT OR IGNORE INTO scripts (id, name, description)
+    VALUES (?, ?, ?)
+  `).run(fukanoScript.id, fukanoScript.name, fukanoScript.description);
+
+  const insertRole = db.prepare(`
+    INSERT OR IGNORE INTO roles (id, script_id, name, type, description)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  for (const role of fukanoRoles) {
+    insertRole.run(role.id, fukanoScript.id, role.name, role.type, role.description);
   }
 
   console.log('✅ Database initialized');

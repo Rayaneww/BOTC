@@ -218,8 +218,8 @@ function handleHostConnection(socket: AuthenticatedSocket, io: SocketServer, aut
           
           io.to(roomName).emit('phase_changed', { phase, dayNumber });
           
-          // Auto-start meeting when switching to day
-          if (phase === 'day') {
+          // Auto-start meeting when switching to night
+          if (phase === 'night') {
             const meeting = meetingService.startMeeting(game.id);
             io.to(roomName).emit('meeting_started', {
               meetingNumber: meeting.meetingNumber,

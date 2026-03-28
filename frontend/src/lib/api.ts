@@ -1,4 +1,14 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+function getDefaultApiUrl(): string {
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:3001`;
+  }
+
+  return 'http://localhost:3001';
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || getDefaultApiUrl();
 
 interface CreateGamePayload {
   name: string;

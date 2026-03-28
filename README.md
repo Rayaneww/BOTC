@@ -89,6 +89,30 @@ docker-compose up --build
 # - Backend: http://localhost:3001
 ```
 
+### Docker sur réseau local privé (LAN)
+
+Pour permettre à quelques personnes de se connecter via l'IP du serveur :
+
+1. Copier l'exemple d'environnement
+```bash
+cp .env.example .env
+```
+
+2. Mettre l'IP de la machine serveur dans `.env`
+```dotenv
+SERVER_IP=192.168.1.105
+API_URL=http://192.168.1.105:3001
+FRONTEND_URL=http://192.168.1.105:3000
+```
+
+3. Lancer Docker
+```bash
+docker compose up --build -d
+```
+
+4. Les joueurs ouvrent :
+- `http://192.168.0.15:3000`
+
 ## 🎲 Script de rôles inclus
 
 ### Fukano (script par défaut)

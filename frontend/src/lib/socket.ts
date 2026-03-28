@@ -1,6 +1,16 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+function getDefaultSocketUrl(): string {
+  if (typeof window !== 'undefined') {
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:3001`;
+  }
+
+  return 'http://localhost:3001';
+}
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || getDefaultSocketUrl();
 
 let socket: Socket | null = null;
 
