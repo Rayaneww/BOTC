@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Skull, Shield, Eye, User, Sparkles, X } from 'lucide-react';
+import { useState } from 'react';
+import { Skull, Shield, Eye, User } from 'lucide-react';
 import { RoleBadge } from './RoleCard';
 
 interface Role {
@@ -14,8 +14,7 @@ interface Role {
 interface RoleRevealProps {
   role: Role;
   seatNumber?: number | null;
-  onClose?: () => void;
-  autoShow?: boolean;
+  onConfirm: () => void;
 }
 
 const typeConfig = {
@@ -61,169 +60,51 @@ const typeConfig = {
   },
 };
 
-export function RoleReveal({ role, seatNumber, onClose, autoShow = false }: RoleRevealProps) {
-  const [isVisible, setIsVisible] = useState(false);
-  const [isRevealed, setIsRevealed] = useState(false);
-  const [showDescription, setShowDescription] = useState(false);
-
+export function RoleReveal({ role, seatNumber, onConfirm }: RoleRevealProps) {
   const config = typeConfig[role.type];
   const Icon = config.icon;
 
-  useEffect(() => {
-    if (autoShow) {
-      setIsVisible(true);
-      // Animation sequence
-      setTimeout(() => setIsRevealed(true), 500);
-      setTimeout(() => setShowDescription(true), 1500);
-    }
-  }, [autoShow]);
-
-  const handleReveal = () => {
-    setIsVisible(true);
-    setTimeout(() => setIsRevealed(true), 500);
-    setTimeout(() => setShowDescription(true), 1500);
-  };
-
-  const handleClose = () => {
-    setShowDescription(false);
-    setTimeout(() => setIsRevealed(false), 200);
-    setTimeout(() => {
-      setIsVisible(false);
-      onClose?.();
-    }, 500);
-  };
-
-  if (!isVisible && !autoShow) {
-    return (
-      <button
-        onClick={handleReveal}
-        className="w-full card card-hover text-center py-8 group"
-      >
-        <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-accent-gold/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-          <Sparkles className="w-10 h-10 text-accent-gold animate-pulse" />
-        </div>
-        <h3 className="font-display text-xl mb-2">Révéler mon rôle</h3>
-        <p className="text-sm text-text-secondary">Appuyez pour découvrir votre identité</p>
-      </button>
-    );
-  }
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 role-reveal-overlay">
-      {/* Background particles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-2 h-2 rounded-full bg-white/20 animate-float"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${3 + Math.random() * 4}s`,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Close button */}
-      {onClose && (
-        <button
-          onClick={handleClose}
-          className="absolute top-4 right-4 p-2 text-white/60 hover:text-white transition-colors z-10"
-        >
-          <X className="w-6 h-6" />
-        </button>
-      )}
-
-      {/* Main card */}
-      <div
-        className={`relative w-full max-w-sm mx-auto perspective-1000 ${
-          isRevealed ? 'card-revealed' : ''
-        }`}
-      >
-        {/* Card flip container */}
-        <div className={`relative w-full transform-style-3d transition-transform duration-700 ${
-          isRevealed ? 'rotate-y-0' : 'rotate-y-180'
-        }`}>
-          {/* Front of card (hidden initially) */}
-          <div className={`w-full rounded-2xl overflow-hidden shadow-2xl ${config.glow} ${
-            isRevealed ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
-          } transition-all duration-500`}>
-            {/* Gradient background */}
-            <div className={`bg-gradient-to-b ${config.gradient} ${config.bgPattern} p-6 sm:p-8`}>
-              {/* Icon container with glow */}
-              <div className="relative mb-6">
-                <div className={`absolute inset-0 blur-3xl ${config.iconColor} opacity-30`} />
-                <div className={`relative w-24 h-24 sm:w-32 sm:h-32 mx-auto rounded-full bg-black/30 backdrop-blur flex items-center justify-center border-2 ${config.borderColor} role-icon-container`}>
-                  <Icon className={`w-12 h-12 sm:w-16 sm:h-16 ${config.iconColor} role-icon`} />
-                </div>
-              </div>
-
-              {/* Type badge */}
-              <div className="text-center mb-4">
-                <p className="text-white/60 text-sm uppercase tracking-widest mb-1">
-                  {config.title}
-                </p>
-              </div>
-
-              {/* Role name */}
-              <h2 className="font-display text-3xl sm:text-4xl font-bold text-white text-center mb-2 role-name">
-                {role.name}
-              </h2>
-
-              {/* Role badge */}
-              <div className="flex justify-center mb-4">
-                <RoleBadge type={role.type} />
-              </div>
-
-              {/* Seat number */}
-              {seatNumber && (
-                <div className="bg-black/30 backdrop-blur rounded-lg p-3 mb-4 text-center">
-                  <span className="text-white/60 text-sm">Votre siège :</span>
-                  <span className="ml-2 font-bold text-accent-gold text-lg">{seatNumber}</span>
-                </div>
-              )}
-
-              {/* Description */}
-              <div className={`bg-black/40 backdrop-blur rounded-xl p-4 transition-all duration-500 ${
-                showDescription ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-              }`}>
-                <p className="text-white/90 text-sm sm:text-base leading-relaxed">
-                  {role.description}
-                </p>
-              </div>
-
-              {/* Bottom decoration */}
-              <div className="mt-6 flex justify-center gap-2">
-                {[...Array(5)].map((_, i) => (
-                  <div
-                    key={i}
-                    className={`w-2 h-2 rounded-full ${config.iconColor} opacity-60`}
-                    style={{ animationDelay: `${i * 0.1}s` }}
-                  />
-                ))}
-              </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/95">
+      <div className={`w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl ${config.glow}`}>
+        <div className={`bg-gradient-to-b ${config.gradient} p-6 sm:p-8`}>
+          <div className="mb-6 flex justify-center">
+            <div className={`w-24 h-24 rounded-full bg-black/30 flex items-center justify-center border-2 ${config.borderColor}`}>
+              <Icon className={`w-12 h-12 ${config.iconColor}`} />
             </div>
           </div>
-        </div>
 
-        {/* Tap to continue hint */}
-        {showDescription && onClose && (
-          <p className="text-center text-white/40 text-sm mt-4 animate-pulse">
-            Appuyez n'importe où pour continuer
+          <p className="text-white/60 text-sm uppercase tracking-widest text-center mb-1">
+            {config.title}
           </p>
-        )}
-      </div>
 
-      {/* Tap anywhere to close */}
-      {showDescription && onClose && (
-        <div
-          className="absolute inset-0 cursor-pointer"
-          onClick={handleClose}
-          style={{ zIndex: -1 }}
-        />
-      )}
+          <h2 className="font-display text-3xl font-bold text-white text-center mb-3">
+            {role.name}
+          </h2>
+
+          <div className="flex justify-center mb-4">
+            <RoleBadge type={role.type} />
+          </div>
+
+          {seatNumber && (
+            <div className="bg-black/30 rounded-lg p-3 mb-4 text-center">
+              <span className="text-white/60 text-sm">Votre siège :</span>
+              <span className="ml-2 font-bold text-accent-gold text-lg">{seatNumber}</span>
+            </div>
+          )}
+
+          <div className="bg-black/40 rounded-xl p-4 mb-6">
+            <p className="text-white/90 text-sm leading-relaxed">{role.description}</p>
+          </div>
+
+          <button
+            onClick={onConfirm}
+            className="w-full py-3 rounded-xl bg-accent-gold text-black font-bold text-base hover:bg-accent-gold/90 transition-colors"
+          >
+            J'ai mémorisé mon rôle
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
