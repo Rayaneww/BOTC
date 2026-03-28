@@ -14,17 +14,16 @@ import {
   Eye,
   User,
   Bell,
-  Hand,
-  Vote,
-  Check,
-  Phone,
-  AlertCircle,
+  Lock,
 } from 'lucide-react';
 import { api, type Role, type Player } from '@/lib/api';
 import { useSocket } from '@/hooks/useSocket';
 import { RoleCard, RoleBadge } from '@/components/RoleCard';
 import { RoleReveal, RoleDisplay } from '@/components/RoleReveal';
 import { MeetingAlert } from '@/components/MeetingAlert';
+import { SeatMap } from '@/components/SeatMap';
+import { NightEyesClosed } from '@/components/NightEyesClosed';
+import { NightActionUI, getNightActionType } from '@/components/NightActionUI';
 
 export default function PlayPage() {
   const params = useParams();
@@ -42,25 +41,16 @@ export default function PlayPage() {
   const [dayNumber, setDayNumber] = useState(1);
   const [isReady, setIsReadyState] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'role' | 'players' | 'roles'>('role');
+  const [activeTab, setActiveTab] = useState<'role' | 'players' | 'table' | 'roles'>('role');
   const [notes, setNotes] = useState('');
   const [showRoleReveal, setShowRoleReveal] = useState(false);
+  const [roleConfirmed, setRoleConfirmed] = useState(false);
+  const [nightActionConfirmed, setNightActionConfirmed] = useState(false);
+  const [nightInfo, setNightInfo] = useState<string | null>(null);
   const [meetingAlert, setMeetingAlert] = useState<{ number: number; time: string } | null>(null);
   const [bluffRoles, setBluffRoles] = useState<Role[]>([]);
   const [nightCallActive, setNightCallActive] = useState(false); // Being called by host at night
   const [espionRoles, setEspionRoles] = useState<{ playerId: string; pseudo: string; seatNumber: number | null; roleName: string; roleType: string }[]>([]);
-  
-  // Meeting/Voting state
-  const [meetingStatus, setMeetingStatus] = useState<'none' | 'nomination' | 'voting' | 'results'>('none');
-  const [nominatedPlayers, setNominatedPlayers] = useState<{ playerId: string; pseudo: string; seatNumber: number | null }[]>([]);
-  const [voteCount, setVoteCount] = useState({ total: 0, voted: 0, remaining: 0 });
-  const [hasVoted, setHasVoted] = useState(false);
-  const [myVote, setMyVote] = useState<string | null>(null);
-  const [votingResults, setVotingResults] = useState<{
-    votes: { playerId: string; pseudo: string; roleType: string | null; voteCount: number }[];
-    individualVotes: { voterId: string; voterPseudo: string; voterRoleType: string | null; votedForId: string; votedForPseudo: string }[];
-    eliminated: { playerId: string; pseudo: string; roleType: string | null } | null;
-  } | null>(null);
 
   // Socket handlers
   const handleLobbyUpdate = useCallback((data: any) => {
@@ -130,6 +120,8 @@ export default function PlayPage() {
     const myPlayerId = localStorage.getItem('player_id');
     if (data.playerId === myPlayerId) {
       setNightCallActive(true);
+      setNightActionConfirmed(false);
+      setNightInfo(null);
     }
   }, []);
 
@@ -138,6 +130,14 @@ export default function PlayPage() {
     if (data.playerId === myPlayerId) {
       setNightCallActive(false);
     }
+  }, []);
+
+  const handleNightActionConfirmed = useCallback(() => {
+    setNightActionConfirmed(true);
+  }, []);
+
+  const handleNightInfoReceived = useCallback((data: { info: string }) => {
+    setNightInfo(data.info);
   }, []);
 
   const handleReconnected = useCallback((data: any) => {
@@ -152,53 +152,8 @@ export default function PlayPage() {
   const handleMeetingAlert = useCallback((data: { meetingNumber: number; timeElapsed: string }) => {
     setMeetingAlert({ number: data.meetingNumber, time: data.timeElapsed });
   }, []);
-  
-  // Meeting handlers
-  const handleMeetingStarted = useCallback(() => {
-    setMeetingStatus('nomination');
-    setNominatedPlayers([]);
-    setVotingResults(null);
-    setHasVoted(false);
-    setMyVote(null);
-    setMeetingAlert(null);
-  }, []);
-  
-  const handleNominationsUpdated = useCallback((data: any) => {
-    setNominatedPlayers(data.nominated);
-  }, []);
-  
-  const handleVotingStarted = useCallback((data: any) => {
-    setMeetingStatus('voting');
-    setNominatedPlayers(data.nominated);
-    setVoteCount(data.voteCount);
-    setHasVoted(false);
-    setMyVote(null);
-  }, []);
-  
-  const handleVoteCast = useCallback((data: any) => {
-    setVoteCount(data.voteCount);
-  }, []);
-  
-  const handleVoteConfirmed = useCallback((data: any) => {
-    setHasVoted(true);
-    setMyVote(data.nomineeId);
-  }, []);
-  
-  const handleVotingResults = useCallback((data: any) => {
-    setMeetingStatus('results');
-    setVotingResults(data);
-  }, []);
-  
-  const handleMeetingEnded = useCallback(() => {
-    setMeetingStatus('none');
-    setNominatedPlayers([]);
-    setVotingResults(null);
-    setHasVoted(false);
-    setMyVote(null);
-    setVoteCount({ total: 0, voted: 0, remaining: 0 });
-  }, []);
 
-  const { isConnected, setReady, castVote } = useSocket({
+  const { isConnected, setReady, submitNightAction } = useSocket({
     gameCode,
     onLobbyUpdate: handleLobbyUpdate,
     onGameStarted: handleGameStarted,
@@ -209,15 +164,10 @@ export default function PlayPage() {
     onPlayerLeft: handlePlayerLeft,
     onReconnected: handleReconnected,
     onMeetingAlert: handleMeetingAlert,
-    onMeetingStarted: handleMeetingStarted,
-    onNominationsUpdated: handleNominationsUpdated,
-    onVotingStarted: handleVotingStarted,
-    onVoteCast: handleVoteCast,
-    onVoteConfirmed: handleVoteConfirmed,
-    onVotingResults: handleVotingResults,
-    onMeetingEnded: handleMeetingEnded,
     onNightCall: handleNightCall,
     onNightCallEnd: handleNightCallEnd,
+    onNightActionConfirmed: handleNightActionConfirmed,
+    onNightInfoReceived: handleNightInfoReceived,
   });
 
   // Load initial data
@@ -377,22 +327,9 @@ export default function PlayPage() {
             </p>
           </div>
           
-          {/* Night Call Notification */}
-          {phase === 'night' && nightCallActive && (
-            <div className="shrink-0 p-4 bg-accent-gold/30 border-b border-accent-gold animate-pulse">
-              <div className="flex items-center justify-center gap-3">
-                <Phone className="w-6 h-6 text-accent-gold" />
-                <div className="text-center">
-                  <p className="font-bold text-accent-gold">Le Conteur vous appelle !</p>
-                  <p className="text-sm text-text-secondary">Rejoignez le Conteur pour utiliser votre capacité</p>
-                </div>
-              </div>
-            </div>
-          )}
-          
           {/* Tabs */}
           <div className="flex border-b border-border-color shrink-0">
-            {(['role', 'players', 'roles'] as const).map((tab) => (
+            {(['role', 'players', 'table', 'roles'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -404,6 +341,7 @@ export default function PlayPage() {
               >
                 {tab === 'role' && '🎭 Rôle'}
                 {tab === 'players' && '👥 Joueurs'}
+                {tab === 'table' && '🪑 Table'}
                 {tab === 'roles' && '📜 Scripts'}
               </button>
             ))}
@@ -425,16 +363,21 @@ export default function PlayPage() {
                   </div>
                 )}
 
-                {myRole ? (
-                  <RoleDisplay role={myRole} seatNumber={mySeat} />
-                ) : (
-                  <div className="card text-center py-8">
-                    <Shield className="w-12 h-12 text-text-secondary mx-auto mb-4" />
-                    <p className="text-text-secondary">
-                      Votre rôle n'a pas encore été attribué
-                    </p>
-                  </div>
-                )}
+                <div className="p-4">
+                  {roleConfirmed ? (
+                    <div className="card text-center py-10">
+                      <Lock className="w-10 h-10 text-text-secondary mx-auto mb-4" />
+                      <p className="font-medium text-text-primary mb-1">Rôle mémorisé</p>
+                      <p className="text-sm text-text-secondary">
+                        Si vous l'avez oublié, demandez au Maître du Jeu.
+                      </p>
+                    </div>
+                  ) : myRole ? (
+                    <RoleDisplay role={myRole} seatNumber={mySeat} />
+                  ) : (
+                    <p className="text-text-secondary text-center">Rôle non attribué</p>
+                  )}
+                </div>
                 
                 {/* Bluff roles for Demons */}
                 {myRole?.type === 'Démon' && bluffRoles.length > 0 && (
@@ -547,6 +490,17 @@ export default function PlayPage() {
               </div>
             )}
 
+            {/* Table tab */}
+            {activeTab === 'table' && (
+              <div className="p-4">
+                <SeatMap
+                  players={players}
+                  totalSeats={players.length || 5}
+                  showRoles={false}
+                />
+              </div>
+            )}
+
             {/* All Roles tab */}
             {activeTab === 'roles' && (
               <div className="space-y-3">
@@ -594,18 +548,37 @@ export default function PlayPage() {
         </div>
       )}
 
-      {/* Role Reveal Animation Modal */}
-      {showRoleReveal && myRole && (
+      {/* Role reveal — shown once */}
+      {showRoleReveal && !roleConfirmed && myRole && (
         <RoleReveal
           role={myRole}
           seatNumber={mySeat}
-          onClose={() => setShowRoleReveal(false)}
-          autoShow={true}
+          onConfirm={() => {
+            setRoleConfirmed(true);
+            setShowRoleReveal(false);
+          }}
+        />
+      )}
+
+      {/* Night overlays */}
+      {phase === 'night' && !nightCallActive && <NightEyesClosed />}
+      {phase === 'night' && nightCallActive && myRole && (
+        <NightActionUI
+          roleName={myRole.name}
+          players={players}
+          myPlayerId={localStorage.getItem('player_id') || ''}
+          nightInfo={nightInfo}
+          onSubmitTarget={(targetId) =>
+            submitNightAction({ actionType: 'choose_target', targetId })
+          }
+          onSubmitTwo={(targetIds) =>
+            submitNightAction({ actionType: 'choose_two', targetIds })
+          }
         />
       )}
 
       {/* Meeting Alert Modal */}
-      {meetingAlert && meetingStatus === 'none' && (
+      {meetingAlert && (
         <MeetingAlert
           meetingNumber={meetingAlert.number}
           timeElapsed={meetingAlert.time}
@@ -613,236 +586,7 @@ export default function PlayPage() {
           isHost={false}
         />
       )}
-      
-      {/* Meeting/Voting Panel */}
-      {meetingStatus !== 'none' && gameStatus === 'playing' && (
-        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col">
-          <div className="flex-1 flex flex-col max-w-lg mx-auto w-full p-4">
-            {/* Meeting Header */}
-            <div className="text-center mb-6">
-              {meetingStatus === 'nomination' && (
-                <>
-                  <Hand className="w-12 h-12 text-accent-gold mx-auto mb-2" />
-                  <h2 className="font-display text-2xl">Réunion du Village</h2>
-                  <p className="text-text-secondary">
-                    Le Conteur désigne les nominés...
-                  </p>
-                </>
-              )}
-              {meetingStatus === 'voting' && (
-                <>
-                  <Vote className="w-12 h-12 text-accent-gold mx-auto mb-2" />
-                  <h2 className="font-display text-2xl">Phase de Vote</h2>
-                  <p className="text-text-secondary">
-                    {hasVoted ? 'Votre vote a été enregistré' : 'Choisissez qui éliminer'}
-                  </p>
-                </>
-              )}
-              {meetingStatus === 'results' && (
-                <>
-                  <Skull className="w-12 h-12 text-accent-red mx-auto mb-2" />
-                  <h2 className="font-display text-2xl">Résultats</h2>
-                  <p className="text-text-secondary">Le village a parlé</p>
-                </>
-              )}
-            </div>
             
-            {/* Nomination Phase - Just watching */}
-            {meetingStatus === 'nomination' && (
-              <div className="flex-1 overflow-auto">
-                <div className="mb-4">
-                  <h3 className="text-sm text-text-secondary mb-2">
-                    Nominés ({nominatedPlayers.length}/3)
-                  </h3>
-                  {nominatedPlayers.length > 0 ? (
-                    <div className="space-y-2">
-                      {nominatedPlayers.map((p) => (
-                        <div
-                          key={p.playerId}
-                          className="p-3 bg-accent-red/20 border border-accent-red rounded-lg"
-                        >
-                          <span className="font-medium">{p.pseudo}</span>
-                          {p.seatNumber && (
-                            <span className="text-xs text-text-secondary ml-2">
-                              Siège #{p.seatNumber}
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-bg-card rounded-lg text-center text-text-secondary">
-                      En attente des nominations...
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            {/* Voting Phase */}
-            {meetingStatus === 'voting' && (
-              <div className="flex-1 overflow-auto">
-                {/* Vote progress */}
-                <div className="mb-4 p-4 bg-bg-secondary rounded-lg">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-text-secondary">Progression</span>
-                    <span className="font-bold text-accent-gold">
-                      {voteCount.voted}/{voteCount.total}
-                    </span>
-                  </div>
-                  <div className="w-full bg-bg-card rounded-full h-3">
-                    <div
-                      className="bg-accent-gold h-3 rounded-full transition-all"
-                      style={{
-                        width: `${voteCount.total > 0 ? (voteCount.voted / voteCount.total) * 100 : 0}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                {/* Voting buttons or confirmation */}
-                {!hasVoted && isAlive ? (
-                  <div className="space-y-2">
-                    <h3 className="text-sm text-text-secondary mb-2">
-                      Votez pour éliminer :
-                    </h3>
-                    {nominatedPlayers.map((p) => (
-                      <button
-                        key={p.playerId}
-                        onClick={() => castVote(p.playerId)}
-                        className="w-full p-4 bg-bg-card hover:bg-accent-red/20 border-2 border-transparent hover:border-accent-red rounded-lg transition-colors text-left"
-                      >
-                        <span className="font-medium">{p.pseudo}</span>
-                        {p.seatNumber && (
-                          <span className="text-xs text-text-secondary ml-2">
-                            Siège #{p.seatNumber}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                    <button
-                      onClick={() => castVote('')}
-                      className="w-full p-4 bg-bg-card hover:bg-bg-secondary border-2 border-transparent hover:border-text-secondary rounded-lg transition-colors text-center text-text-secondary"
-                    >
-                      Vote blanc (ne pas éliminer)
-                    </button>
-                  </div>
-                ) : hasVoted ? (
-                  <div className="text-center p-6 bg-bg-card rounded-lg">
-                    <Check className="w-12 h-12 text-green-500 mx-auto mb-2" />
-                    <p className="font-medium">Vote enregistré</p>
-                    {myVote && myVote !== '' && (
-                      <p className="text-sm text-text-secondary mt-1">
-                        Vous avez voté pour{' '}
-                        {nominatedPlayers.find((p) => p.playerId === myVote)?.pseudo || 'quelqu\'un'}
-                      </p>
-                    )}
-                    {myVote === '' && (
-                      <p className="text-sm text-text-secondary mt-1">
-                        Vote blanc
-                      </p>
-                    )}
-                    <p className="text-xs text-text-secondary mt-4">
-                      En attente des autres votes...
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-center p-6 bg-bg-card rounded-lg">
-                    <Skull className="w-12 h-12 text-text-secondary mx-auto mb-2" />
-                    <p className="text-text-secondary">
-                      Les morts ne votent pas
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {/* Results Phase */}
-            {meetingStatus === 'results' && votingResults && (
-              <div className="flex-1 overflow-auto">
-                {/* Vote counts by nominee */}
-                <h3 className="text-sm text-text-secondary mb-2">Résultats des votes</h3>
-                <div className="space-y-3 mb-6">
-                  {votingResults.votes.map((v, index) => {
-                    const isEliminated =
-                      votingResults.eliminated?.playerId === v.playerId;
-                    return (
-                      <div
-                        key={v.playerId}
-                        className={`p-4 rounded-lg ${
-                          isEliminated
-                            ? 'bg-accent-red/30 border-2 border-accent-red'
-                            : 'bg-bg-card'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <span
-                              className={`text-2xl font-bold ${
-                                isEliminated ? 'text-accent-red' : 'text-text-secondary'
-                              }`}
-                            >
-                              #{index + 1}
-                            </span>
-                            <span className="font-medium">{v.pseudo}</span>
-                          </div>
-                          <span
-                            className={`text-xl font-bold ${
-                              isEliminated ? 'text-accent-red' : 'text-accent-gold'
-                            }`}
-                          >
-                            {v.voteCount} vote{v.voteCount !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                {/* Individual votes */}
-                <h3 className="text-sm text-text-secondary mb-2">Détail des votes</h3>
-                <div className="space-y-2 mb-6">
-                  {votingResults.individualVotes.map((v) => {
-                    return (
-                      <div
-                        key={v.voterId}
-                        className="p-2 bg-bg-card rounded-lg text-sm flex items-center justify-between"
-                      >
-                        <span className="font-medium">{v.voterPseudo}</span>
-                        <div className="flex items-center gap-1 text-text-secondary">
-                          <span>→</span>
-                          <span className={v.votedForId === '' ? 'italic' : ''}>
-                            {v.votedForPseudo}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                {votingResults.eliminated ? (
-                  <div className="text-center p-4 bg-accent-red/20 rounded-lg">
-                    <Skull className="w-8 h-8 text-accent-red mx-auto mb-2" />
-                    <p className="text-accent-red font-bold text-lg">
-                      {votingResults.eliminated.pseudo} est éliminé
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-center p-4 bg-bg-secondary rounded-lg">
-                    <p className="text-text-secondary">
-                      Pas d'élimination
-                    </p>
-                  </div>
-                )}
-                
-                <p className="text-center text-xs text-text-secondary mt-4">
-                  En attente de la confirmation du Conteur...
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
