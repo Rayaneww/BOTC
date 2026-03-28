@@ -3,6 +3,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: rwatteeuw/botc-backend:latest
     container_name: botct-backend
     ports:
       - "3002:3001"
@@ -27,6 +28,7 @@ services:
       dockerfile: Dockerfile
       args:
         - NEXT_PUBLIC_API_URL=${API_URL:-http://${SERVER_IP:-192.168.0.15}:3001}
+    image: rwatteeuw/botc-frontend:latest
     container_name: botct-frontend
     ports:
       - "3000:3000"
