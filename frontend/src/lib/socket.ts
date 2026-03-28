@@ -117,69 +117,6 @@ export interface MeetingAlertEvent {
   timeElapsed: string;
 }
 
-export interface MeetingStartedEvent {
-  meetingNumber: number;
-  status: 'nomination' | 'voting' | 'results' | 'closed';
-}
-
-export interface NominatedPlayer {
-  playerId: string;
-  pseudo: string;
-  seatNumber: number | null;
-}
-
-export interface NominationsUpdatedEvent {
-  nominated: NominatedPlayer[];
-}
-
-export interface VotingStartedEvent {
-  nominated: NominatedPlayer[];
-  voteCount: { total: number; voted: number; remaining: number };
-}
-
-export interface VoteCastEvent {
-  voterId: string;
-  voterPseudo: string;
-  voteCount: { total: number; voted: number; remaining: number };
-}
-
-export interface VoteConfirmedEvent {
-  nomineeId: string;
-}
-
-export interface IndividualVote {
-  voterId: string;
-  voterPseudo: string;
-  voterRoleType: 'Citadin' | 'Sbire' | 'Démon' | 'Étranger' | null;
-  votedForId: string;
-  votedForPseudo: string;
-}
-
-export interface NomineeResult {
-  playerId: string;
-  pseudo: string;
-  roleType: 'Citadin' | 'Sbire' | 'Démon' | 'Étranger' | null;
-  voteCount: number;
-}
-
-export interface VotingResultsEvent {
-  votes: NomineeResult[];
-  individualVotes: IndividualVote[];
-  eliminated: { playerId: string; pseudo: string; roleType: string | null } | null;
-  totalVotes: number;
-}
-
-export interface PlayerEliminatedEvent {
-  playerId: string;
-  pseudo: string;
-  votes: NomineeResult[];
-}
-
-export interface MeetingEndedEvent {
-  eliminated: { playerId: string; pseudo: string } | null;
-  noVote?: boolean;
-}
-
 export interface PhaseChangedEvent {
   phase: 'day' | 'night';
   dayNumber: number;
@@ -226,4 +163,25 @@ export interface ReconnectedEvent {
 export interface ErrorEvent {
   code: string;
   message: string;
+}
+
+export interface NightActionConfirmedEvent {
+  actionType: 'choose_target' | 'choose_two' | 'choose_master';
+  targetId?: string;
+  targetIds?: string[];
+}
+
+export interface NightInfoReceivedEvent {
+  info: string;
+}
+
+export interface NightActionReceivedEvent {
+  playerId: string;
+  playerPseudo: string;
+  roleName: string;
+  actionType: 'choose_target' | 'choose_two' | 'choose_master';
+  targetId?: string;
+  targetIds?: string[];
+  targetPseudo?: string;
+  targetPseudos?: string[];
 }
