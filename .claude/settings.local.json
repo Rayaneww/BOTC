@@ -37,7 +37,10 @@
       "Bash(cmd.exe /c \"where node 2>&1\")",
       "Bash(cmd.exe /c \"where node 2>nul && echo found\")",
       "Bash(cmd.exe /c \"node --version 2>&1 & echo EXIT:%ERRORLEVEL%\")",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(docker --version)",
+      "Bash(docker compose:*)",
+      "Bash(powershell.exe -Command \"Get-NetIPAddress -AddressFamily IPv4 | Where-Object { \\\\$_.IPAddress -notmatch '^127|^169' } | Select-Object IPAddress, InterfaceAlias | Format-Table\" 2>&1)"
     ]
   }
 }
