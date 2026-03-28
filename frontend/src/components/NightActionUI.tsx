@@ -31,7 +31,7 @@ export function getNightActionType(roleName: string): NightActionType {
 interface NightPlayer {
   id: string;
   pseudo: string;
-  isAlive: boolean;
+  isAlive?: boolean;
   seatNumber?: number | null;
 }
 
@@ -57,7 +57,7 @@ export function NightActionUI({
   const [submitted, setSubmitted] = useState(false);
 
   const actionType = getNightActionType(roleName);
-  const alivePlayers = players.filter((p) => p.isAlive);
+  const alivePlayers = players.filter((p) => p.isAlive !== false);
   const othersAlive = alivePlayers.filter((p) => p.id !== myPlayerId);
 
   const handleSubmitTarget = () => {
@@ -156,7 +156,7 @@ export function NightActionUI({
                   className={`w-full p-4 rounded-xl text-left transition-colors ${
                     selectedTwo.includes(p.id)
                       ? 'bg-accent-gold text-black font-bold'
-                      : p.isAlive
+                      : p.isAlive !== false
                       ? 'bg-gray-800 text-white hover:bg-gray-700'
                       : 'bg-gray-900 text-gray-500'
                   }`}
@@ -165,7 +165,7 @@ export function NightActionUI({
                     <span className="text-sm opacity-60 mr-2">#{p.seatNumber}</span>
                   )}
                   {p.pseudo}
-                  {!p.isAlive && <span className="ml-2 text-xs">☠️</span>}
+                  {p.isAlive === false && <span className="ml-2 text-xs">☠️</span>}
                 </button>
               ))}
             </div>
