@@ -3,8 +3,8 @@ import { Server as HttpServer } from 'http';
 import { verifyToken } from './utils/jwt.js';
 import { gameService } from './services/GameService.js';
 import { timerService } from './services/TimerService.js';
-import { meetingService } from './services/MeetingService.js';
 import type { JWTPayload } from './models/types.js';
+import { validateNightAction } from './utils/nightAction.js';
 
 interface AuthenticatedSocket extends Socket {
   auth?: JWTPayload;
@@ -215,17 +215,7 @@ function handleHostConnection(socket: AuthenticatedSocket, io: SocketServer, aut
         case 'change_phase': {
           const { phase, dayNumber } = data.payload;
           gameService.updateGameState(game.id, { phase, dayNumber });
-          
           io.to(roomName).emit('phase_changed', { phase, dayNumber });
-          
-          // Auto-start meeting when switching to night
-          if (phase === 'night') {
-            const meeting = meetingService.startMeeting(game.id);
-            io.to(roomName).emit('meeting_started', {
-              meetingNumber: meeting.meetingNumber,
-              status: 'nomination',
-            });
-          }
           break;
         }
         
@@ -297,120 +287,6 @@ function handleHostConnection(socket: AuthenticatedSocket, io: SocketServer, aut
           break;
         }
         
-        case 'start_meeting': {
-          // Start a meeting with nomination phase
-          const meeting = meetingService.startMeeting(game.id);
-          
-          io.to(roomName).emit('meeting_started', {
-            meetingNumber: meeting.meetingNumber,
-            status: 'nomination',
-          });
-          break;
-        }
-        
-        case 'nominate_player': {
-          const { playerId } = data.payload;
-          const result = meetingService.nominatePlayer(game.id, playerId);
-          
-          if (!result.success) {
-            socket.emit('error', { code: 'NOMINATION_ERROR', message: result.error });
-            return;
-          }
-          
-          const nominated = meetingService.getNominatedPlayers(game.id);
-          io.to(roomName).emit('nominations_updated', {
-            nominated,
-          });
-          break;
-        }
-        
-        case 'remove_nomination': {
-          const { playerId } = data.payload;
-          const result = meetingService.removeNomination(game.id, playerId);
-          
-          if (!result.success) {
-            socket.emit('error', { code: 'NOMINATION_ERROR', message: result.error });
-            return;
-          }
-          
-          const nominated = meetingService.getNominatedPlayers(game.id);
-          io.to(roomName).emit('nominations_updated', {
-            nominated,
-          });
-          break;
-        }
-        
-        case 'start_voting': {
-          const result = meetingService.startVoting(game.id);
-          
-          if (!result.success) {
-            socket.emit('error', { code: 'VOTING_ERROR', message: result.error });
-            return;
-          }
-          
-          const nominated = meetingService.getNominatedPlayers(game.id);
-          const voteCount = meetingService.getVoteCount(game.id);
-          
-          io.to(roomName).emit('voting_started', {
-            nominated,
-            voteCount,
-          });
-          break;
-        }
-        
-        case 'end_voting': {
-          const results = meetingService.endVoting(game.id);
-          
-          if (!results) {
-            socket.emit('error', { code: 'VOTING_ERROR', message: 'Impossible de terminer le vote' });
-            return;
-          }
-          
-          io.to(roomName).emit('voting_results', results);
-          break;
-        }
-        
-        case 'confirm_elimination': {
-          const meeting = meetingService.getMeeting(game.id);
-          if (!meeting || meeting.status !== 'results') {
-            socket.emit('error', { code: 'MEETING_ERROR', message: 'Pas de résultats à confirmer' });
-            return;
-          }
-          
-          const results = meetingService.endVoting(game.id);
-          if (results?.eliminated) {
-            // Eliminate the player
-            gameService.setPlayerAlive(results.eliminated.playerId, false);
-            
-            io.to(roomName).emit('player_eliminated', {
-              playerId: results.eliminated.playerId,
-              pseudo: results.eliminated.pseudo,
-              votes: results.votes,
-            });
-            
-            io.to(roomName).emit('player_status_changed', {
-              playerId: results.eliminated.playerId,
-              isAlive: false,
-            });
-          }
-          
-          meetingService.closeMeeting(game.id);
-          io.to(roomName).emit('meeting_ended', {
-            eliminated: results?.eliminated || null,
-          });
-          break;
-        }
-        
-        case 'end_meeting_no_vote': {
-          meetingService.endMeetingWithoutVote(game.id);
-          
-          io.to(roomName).emit('meeting_ended', {
-            eliminated: null,
-            noVote: true,
-          });
-          break;
-        }
-        
         case 'night_call': {
           // Host calls a player during night
           const { playerId } = data.payload;
@@ -427,7 +303,20 @@ function handleHostConnection(socket: AuthenticatedSocket, io: SocketServer, aut
           io.to(roomName).emit('night_call_end', { playerId });
           break;
         }
-        
+
+        case 'send_night_info': {
+          const { playerId, info } = data.payload;
+          const sockets = await io.in(roomName).fetchSockets();
+          for (const s of sockets) {
+            const sAuth = (s as any).auth as JWTPayload;
+            if (sAuth.type === 'player' && sAuth.playerId === playerId) {
+              s.emit('night_info_received', { info });
+              break;
+            }
+          }
+          break;
+        }
+
         default:
           socket.emit('error', { code: 'UNKNOWN_ACTION', message: 'Action inconnue' });
       }
@@ -472,32 +361,61 @@ function handlePlayerConnection(socket: AuthenticatedSocket, io: SocketServer, a
     }
   });
   
-  // Cast vote in meeting
-  socket.on('cast_vote', (data: { nomineeId: string }) => {
+  socket.on('submit_night_action', (data: {
+    actionType: 'choose_target' | 'choose_two' | 'choose_master';
+    targetId?: string;
+    targetIds?: string[];
+  }) => {
     if (!auth.playerId) return;
-    
+
     const game = gameService.getGameByCode(auth.gameCode);
     if (!game) return;
-    
-    const result = meetingService.castVote(game.id, auth.playerId, data.nomineeId);
-    
-    if (!result.success) {
-      socket.emit('error', { code: 'VOTE_ERROR', message: result.error });
+
+    const player = gameService.getPlayerById(auth.playerId);
+    if (!player) return;
+
+    const role = gameService.getPlayerPerceivedRole(auth.playerId);
+    if (!role) return;
+
+    const alivePlayers = gameService.getPlayersPublic(game.id).filter((p) => p.isAlive);
+    const validation = validateNightAction(data.actionType, data.targetId, data.targetIds, alivePlayers);
+
+    if (!validation.valid) {
+      socket.emit('error', { code: 'NIGHT_ACTION_ERROR', message: validation.error });
       return;
     }
-    
-    const voteCount = meetingService.getVoteCount(game.id);
-    const player = gameService.getPlayerById(auth.playerId);
-    
-    // Notify all that a vote was cast (anonymous)
-    io.to(roomName).emit('vote_cast', {
-      voterId: auth.playerId,
-      voterPseudo: player?.pseudo || 'Inconnu',
-      voteCount,
+
+    let targetPseudo: string | undefined;
+    let targetPseudos: string[] | undefined;
+
+    if (data.targetId) {
+      const target = gameService.getPlayerById(data.targetId);
+      targetPseudo = target?.pseudo;
+    }
+
+    if (data.targetIds) {
+      targetPseudos = data.targetIds.map((id) => {
+        const t = gameService.getPlayerById(id);
+        return t?.pseudo || id;
+      });
+    }
+
+    socket.emit('night_action_confirmed', {
+      actionType: data.actionType,
+      targetId: data.targetId,
+      targetIds: data.targetIds,
     });
-    
-    // Confirm vote to voter
-    socket.emit('vote_confirmed', { nomineeId: data.nomineeId });
+
+    io.to(`host-${auth.gameCode}`).emit('night_action_received', {
+      playerId: auth.playerId,
+      playerPseudo: player.pseudo,
+      roleName: role.name,
+      actionType: data.actionType,
+      targetId: data.targetId,
+      targetIds: data.targetIds,
+      targetPseudo,
+      targetPseudos,
+    });
   });
 }
 
