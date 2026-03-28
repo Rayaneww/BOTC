@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//usr/**)",
+      "Bash(command -v node)",
+      "Bash(cmd.exe /c \"cd /d C:\\\\\\\\Users\\\\\\\\Rayane\\\\\\\\Dev\\\\\\\\BOTC\\\\\\\\backend && node_modules\\\\\\\\.bin\\\\\\\\vitest.cmd run src\\\\\\\\tests\\\\\\\\nightAction.test.ts > C:\\\\\\\\temp_vitest_out.txt 2>&1 & type C:\\\\\\\\temp_vitest_out.txt\" 2>&1)",
+      "Bash(powershell.exe -Command \"cd 'C:\\\\Users\\\\Rayane\\\\Dev\\\\BOTC\\\\backend'; & '.\\\\node_modules\\\\.bin\\\\vitest.cmd' run 'src\\\\tests\\\\nightAction.test.ts'\" 2>&1)",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path 'C:\\\\' -Filter 'node.exe' -Recurse -ErrorAction SilentlyContinue -Depth 5 | Select-Object -First 5 FullName\" 2>&1)",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path 'C:\\\\Users\\\\Rayane' -Filter 'node.exe' -Recurse -ErrorAction SilentlyContinue -Depth 6 | Select-Object -First 5 FullName\" 2>&1)",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path 'C:\\\\Program Files' -Filter 'node.exe' -Recurse -ErrorAction SilentlyContinue -Depth 4 | Select-Object -First 5 FullName\" 2>&1)",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path 'C:\\\\Program Files \\(x86\\)' -Filter 'node.exe' -Recurse -ErrorAction SilentlyContinue -Depth 4 | Select-Object -First 5 FullName\" 2>&1)",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path 'C:\\\\Users\\\\Rayane\\\\AppData' -Filter 'node.exe' -Recurse -ErrorAction SilentlyContinue -Depth 8 | Select-Object -First 5 FullName\" 2>&1)",
+      "Bash(powershell.exe -Command \"Get-ItemProperty HKLM:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\App\\\\ Paths\\\\node.exe -ErrorAction SilentlyContinue\")",
+      "Bash(powershell.exe -Command \"Get-ItemProperty ''HKLM:\\\\SOFTWARE\\\\Node.js'' -ErrorAction SilentlyContinue\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem 'HKLM:\\\\SOFTWARE\\\\Node.js' -ErrorAction SilentlyContinue; Get-ChildItem 'HKLM:\\\\SOFTWARE\\\\WOW6432Node\\\\Node.js' -ErrorAction SilentlyContinue; Get-ItemProperty 'HKLM:\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\\\\*' | Where-Object { \\\\$_.DisplayName -like '*node*' } | Select-Object DisplayName, InstallLocation\" 2>&1)",
+      "Bash(powershell.exe -Command \"Get-ChildItem 'D:\\\\' -Filter 'node.exe' -Recurse -ErrorAction SilentlyContinue -Depth 5 | Select-Object -First 3 FullName\" 2>&1)",
+      "Bash(powershell.exe -Command \"Get-PSDrive -PSProvider FileSystem | Select-Object Name,Root\" 2>&1)",
+      "Bash(powershell.exe -Command \"where.exe node 2>&1\" 2>&1)",
+      "Bash(powershell.exe -Command \"docker ps 2>&1 | Select-Object -First 10\" 2>&1)",
+      "Bash(powershell.exe -Command \"\n\\\\$nodePaths = @\\(\n  'C:\\\\Program Files\\\\nodejs\\\\node.exe',\n  'C:\\\\Program Files \\(x86\\)\\\\nodejs\\\\node.exe',\n  '\\\\$env:APPDATA\\\\npm\\\\node.exe',\n  '\\\\$env:LOCALAPPDATA\\\\nvm\\\\v20\\\\node.exe',\n  '\\\\$env:LOCALAPPDATA\\\\fnm\\\\node.exe'\n\\)\nforeach \\(\\\\$p in \\\\$nodePaths\\) {\n  if \\(Test-Path \\\\$p\\) { Write-Host \\\\\"Found: \\\\$p\\\\\" }\n}\n\" 2>&1)",
+      "Bash(powershell.exe -Command \"\nGet-ChildItem 'C:\\\\' -ErrorAction SilentlyContinue | Select-Object Name\n\" 2>&1)",
+      "Bash(powershell.exe -Command \"Get-ChildItem 'C:\\\\xampp' -ErrorAction SilentlyContinue | Select-Object Name\" 2>&1)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npx vitest:*)",
+      "Read(//c//**)",
+      "Read(//c/Users/Rayane/AppData/Roaming/**)",
+      "Bash(cmd.exe /c 'where node')",
+      "Bash(powershell.exe -Command \"& {node --version}\")",
+      "Bash(powershell.exe -Command \"& {Get-Command node -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source}\")",
+      "Bash(cmd.exe /c \"where node 2>&1 && node --version 2>&1\")",
+      "Read(//c/Users/Rayane/.nvm/versions/**)",
+      "Read(//c/Users/Rayane/AppData/Local/**)",
+      "Read(//c/Users/Rayane/**)",
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(npx tsc:*)",
+      "Bash(cmd.exe /c \"where node 2>&1\")",
+      "Bash(cmd.exe /c \"where node 2>nul && echo found\")",
+      "Bash(cmd.exe /c \"node --version 2>&1 & echo EXIT:%ERRORLEVEL%\")",
+      "Bash(grep:*)"
+    ]
+  }
+}
